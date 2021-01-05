@@ -1,20 +1,32 @@
 package com.lhw.redis_demo;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lhw.redis_demo.listeners.FirstListener;
 import com.lhw.redis_demo.listeners.ListenerExecuter;
 import com.lhw.redis_demo.model.Person;
 import com.lhw.redis_demo.model.TestEvent;
+import com.lhw.redis_demo.model.parse.BasicData;
+import com.lhw.redis_demo.model.parse.ParseDTO;
 import com.lhw.redis_demo.services.TestService;
+import com.lhw.redis_demo.utils.RedisUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.assertj.core.util.Lists;
+import org.json.JSONArray;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
+import springfox.documentation.spring.web.json.Json;
 
 import javax.sql.DataSource;
+import java.io.*;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,6 +36,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @SpringBootTest
+@Slf4j
 class RedisDemoApplicationTests {
 
     @Autowired
@@ -137,5 +150,73 @@ class RedisDemoApplicationTests {
 //        Map<String,String> map = new HashMap<>(16);
 //        Set<Map.Entry<String,String>> result =  map.entrySet();
     }
+
+    /**
+     * 解析json文件
+     * @throws IOException
+     */
+    @Test
+    void testStream() throws IOException {
+        long start = System.currentTimeMillis();
+        InputStream in = new FileInputStream(new File("D:\\QQData\\953522392\\FileRecv\\fzbz_modelEva_product(1).hjson"));
+        //InputStream in = new FileInputStream(new File("D:\\QQData\\953522392\\FileRecv\\testParse.txt"));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        String result = null;
+
+        int len = -1;
+        byte[] b = new byte[1024];
+        while ((len = in.read(b)) != -1){
+            out.write(b,0,len);
+        }
+
+        result = new String(out.toByteArray(), StandardCharsets.UTF_8);
+
+        System.out.println(result);
+
+        List<ParseDTO> parseDTOS =  JSON.parseArray(result, ParseDTO.class);
+
+        redisTemplate.opsForList().rightPush("BasicData", parseDTOS.get(0).getBasicData());
+        redisTemplate.expire("BasicData", 300, TimeUnit.SECONDS);
+        redisTemplate.opsForList().rightPush("DetailData", parseDTOS.get(0).getDetailData());
+        redisTemplate.expire("DetailData", 300, TimeUnit.SECONDS);
+        redisTemplate.opsForList().rightPush("SumData", parseDTOS.get(0).getSumData());
+        redisTemplate.expire("SumData", 300, TimeUnit.SECONDS);
+        redisTemplate.opsForList().rightPush("LandLevels", parseDTOS.get(0).getLandLevels());
+        redisTemplate.expire("LandLevels", 300, TimeUnit.SECONDS);
+
+
+        System.out.println("end : " + (System.currentTimeMillis() - start));
+    }
+
+    /**
+     * 从redis中通过key取出所有的数据
+     */
+    @Test
+    void testGetList(){
+        List<Object> basicData = redisTemplate.opsForList().range("BasicData",0,-1);
+        if (basicData.size() == 0){
+            log.warn("无缓存，请查阅");
+            return;
+        }
+        System.out.println(basicData.get(0));
+    }
+
+    @Cacheable(value = "produceData", key = "#key")
+    public Object cacheData(String key, List productData){
+        List<ParseDTO> temp = productData;
+        switch (key){
+            case "BasicData":return temp.get(0).getBasicData();
+            case "DetailData":return temp.get(0).getDetailData();
+            case "SumData":return temp.get(0).getSumData();
+            case "LandLevels":return temp.get(0).getLandLevels();
+            default:return null;
+        }
+    }
+
+    @Test
+    void testRemoveRedisListData(){
+        redisTemplate.delete(Arrays.asList("BasicData","DetailData","SumData","LandLevels"));
+    }
+
 
 }
