@@ -1,6 +1,7 @@
 package com.lhw.redis_demo.controller;
 
 import com.lhw.redis_demo.annotations.TestAnnotation;
+import com.lhw.redis_demo.model.Person;
 import com.lhw.redis_demo.model.UserTest;
 import com.lhw.redis_demo.services.TestService;
 import com.lhw.redis_demo.utils.RedisUtil;
@@ -8,10 +9,7 @@ import io.swagger.annotations.Api;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Api(tags = "TestController",description = "测试类")
 @RestController
@@ -83,6 +81,19 @@ public class TestController {
     @GetMapping("message")
     public String getMessage(){
         return testService.testMessage();
+    }
+
+    @GetMapping("save/list")
+    public String saveListData(){
+        Person p1 = new Person("ll",18,"gz");
+        Person p2 = new Person("hh",19,"gz");
+        Person p3 = new Person("22",17,"gz");
+        Person p4 = new Person("ww",16,"gz");
+        Person p5 = new Person("lhw",15,"gz");
+        Person[] arrPerson = new Person[]{p1, p2, p3, p4, p5};
+        List<Person> ps = Arrays.asList(arrPerson);
+        testService.saveListData(ps);
+        return "success";
     }
 
 }

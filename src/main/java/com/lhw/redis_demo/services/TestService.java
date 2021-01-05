@@ -2,6 +2,7 @@ package com.lhw.redis_demo.services;
 
 import com.lhw.redis_demo.dao.TestRepository;
 import com.lhw.redis_demo.model.UserTest;
+import com.lhw.redis_demo.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,9 @@ public class TestService {
 
     @Autowired
     TestRepository testRepository;
+
+    @Autowired
+    RedisUtil redisUtil;
 
     @Cacheable(cacheNames = {"user"},key = "#code")
     public UserTest getUserByCode(String code){
@@ -46,6 +50,12 @@ public class TestService {
     @Cacheable(cacheNames = {"test","test2"}, key = "#p0")
     public String testTime(int num){
         return LocalDate.now().lengthOfYear() + " " + LocalDate.now().lengthOfMonth();
+    }
+
+    public void saveListData(List data){
+
+        redisUtil.lSet("list",data,60000);
+        System.out.println("保存list");
     }
 
 }
